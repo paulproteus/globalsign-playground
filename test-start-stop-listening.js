@@ -12,9 +12,8 @@ var app = http.createServer(function(req, res) {
     console.log('closed');
     howManySoFar = 0;
     console.log('reset the counter!');
+    setTimeout(function() { app.listen(3000); }, 1000);
   }
 });
 
 var x = app.listen(3000);
-
-console.log(app.listen(3000));

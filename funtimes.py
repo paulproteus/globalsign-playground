@@ -1,9 +1,15 @@
 import SOAPpy
 wsdlFile = 'https://testsystem.globalsign.com/kb/ws/v1/ManagedSSLService?wsdl'
-soappy_client = SOAPpy.WSDL.Proxy(wsdlFile)
+try:
+    print soappy_client
+except NameError:
+    soappy_client = SOAPpy.WSDL.Proxy(wsdlFile)
 
 import suds.client
-suds_client = suds.client.Client(wsdlFile)
+try:
+    print suds_client
+except NameError:
+    suds_client = suds.client.Client(wsdlFile)
 
 import commands
 def _get_password():
@@ -38,8 +44,19 @@ def sign_csr():
     args.Request.OrderRequestHeader.AuthToken.UserName = 'PAR03383_sandstorm'
     args.Request.OrderRequestHeader.AuthToken.Password = _get_password()
     args.Request.OrderRequestParameter.ProductCode = 'PV'
-    args.Request.OrderRequestParameter.OrderKind = 'New'
-    args.Request.OrderRequestParameter.ValidityPeriod.Months = 1  # FIXME
+    args.Request.OrderRequestParameter.OrderKind = 'new'
+
+    # Create option object to specify we need a custom validity period.
+    option = suds_client.factory.create('Option')
+    option.OptionName = "VPC"
+    option.OptionValue = True
+    args.Request.OrderRequestParameter.Options.Option.append(option)
+
+    # Let's do 1 month.
+    args.Request.OrderRequestParameter.ValidityPeriod.Months = 1
+    args.Request.OrderRequestParameter.ValidityPeriod.NotBefore = '2015-08-01T21:02:13.554-05:00'
+    args.Request.OrderRequestParameter.ValidityPeriod.NotAfter = '2015-08-31T21:02:13.554-05:00'
+
     args.Request.OrderRequestParameter.CSR = open('csr/just-testing.sandcats.io.csr').read()
     args.Request.MSSLDomainID = domain_info['MSSLDomainID']
     args.Request.MSSLProfileID = domain_info['MSSLProfileID']
@@ -47,4 +64,79 @@ def sign_csr():
     args.Request.ContactInfo.LastName = 'James Bond'
     args.Request.ContactInfo.Phone = '+1 585-555-1234'
     args.Request.ContactInfo.Email = 'bond@example.com'
-    return suds_client.service.PVOrder(args)
+    import ZSI
+    #print ZSI.SoapWriter().serialize(args)  #import pdb; pdb.set_trace()
+    return suds_client.service.PVOrder(__inject={'msg': s})
+#return suds_client.service.PVOrder(args)
+
+s = '''<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><soap:Body>
+<PVOrder><Request><OrderRequestHeader>
+
+               <AuthToken>
+
+
+
+                  <UserName>PAR03383_sandstorm</UserName>
+
+                  <Password>''' + _get_password() + '''</Password>
+
+               </AuthToken>
+
+            </OrderRequestHeader>
+
+            <OrderRequestParameter>
+
+               <ProductCode>PV</ProductCode>
+
+               <OrderKind>new</OrderKind>
+
+
+
+             <Options>
+
+                  <Option>
+
+                     <OptionName>VPC</OptionName>
+
+                     <OptionValue>true</OptionValue>
+
+                  </Option>
+
+               </Options>
+
+
+
+ <ValidityPeriod>
+
+
+                  <Months>6</Months>
+
+               <NotBefore>2015-08-04T10:33:10.000-05:00</NotBefore>
+
+               <NotAfter>2015-08-31T21:02:13.554-05:00</NotAfter>
+
+
+ </ValidityPeriod>
+
+
+               <CSR>''' + open('csr/just-testing.sandcats.io.csr').read() + '''</CSR>
+
+            </OrderRequestParameter>
+
+            <MSSLProfileID>03383_SMS2_178</MSSLProfileID>
+
+            <MSSLDomainID>DSMS20000000612</MSSLDomainID>
+
+
+
+            <ContactInfo>
+
+               <FirstName>Bond</FirstName>
+
+               <LastName>James Bond</LastName>
+
+               <Phone>+1 585-555-1234</Phone>
+
+               <Email>bond@example.com</Email>
+
+            </ContactInfo></Request></PVOrder></soap:Body></soap:Envelope>'''
